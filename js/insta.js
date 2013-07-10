@@ -6,6 +6,15 @@
 
 var access_token = "ccd102092f4e27c282ed53a8302440cc";
 
+XMLHttpRequest.prototype.sendAsBinary = function(datastr) {
+    function byteValue(x) {
+        return x.charCodeAt(0) & 0xff;
+    }
+    var ords = Array.prototype.map.call(datastr, byteValue);
+    var ui8a = new Uint8Array(ords);
+    this.send(ui8a.buffer);
+}
+
 // sets up facebook
 window.fbAsyncInit = function() {
     // init the FB JS SDK
