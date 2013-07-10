@@ -4,7 +4,7 @@
 // * send files to PHP on your webserver
 // * post images to a facebook user's photostream
 
-var access_token = "b6524cc92ab5110805f8ded391e1de2d";
+var access_token = "ccd102092f4e27c282ed53a8302440cc";
 
 // sets up facebook
 window.fbAsyncInit = function() {
@@ -43,7 +43,7 @@ $(document).ready(function(){
 	// programatically 
     $("#yada").click(function(){// when they click it
 		fbLogin(function(){ // call fbLogin and tell it to call
-	    	postToNode(); // this when it is ready!
+	    	postToFB(); // this when it is ready!
 		});
     });
 });
@@ -75,7 +75,8 @@ function postToNode(){
     // from http://www.re-cycledair.com/html-5-canvas-saving-to-a-file-with-php
     // pull image data from Processing's canvas
     var imgDataURL = document.getElementById(getProcessingSketchId()).toDataURL();
-	// send it to server side Node JS Javascript (Readapted with instructions from http://howtonode.org/really-simple-file-uploads) 
+	// send it to server side Node JS Javascript
+    //THIS DOES NOT WORK.    
     $.post("/uploads", 
 	 imgDataURL 
     , function(data) {
@@ -89,27 +90,55 @@ function postToNode(){
 // here we use the facebook api to 
 // post an image to the current fb user's photo 
 // stream (look on the photos page of your profile...)
-function postToFB(img_url){
+function postToFB(){
     console.log("posting to fb!");  
     //    fbLogin(function(){
     console.log("Logged into facebook!");
-    // login
-    FB.api('/me/photos?access_token='+access_token, 'post', { 
-   	//FB.api('/'+user_id+'/feed?access_token='+access_token, 'post', { 
-	url: img_url, 
-	message: "New instaspam photo!", 
-	access_token: access_token }, function(response) {    
-	    if (!response || response.error) {
-		console.log('Error occured: ' + JSON.stringify(response.error));
-		alert("error posting to fb");
-	    } else {
-		alert("image posted to fb!");
-		console.log('Post ID: ' + response);
-	    }
-	});
-    //    });
+    // logi
+    var data = document.getElementById(getProcessingSketchId()).toDataURL();
+    var encodedPng = data.substring(data.indexOf(',') + 1, data.length);
+    var decodedPng = Base64Binary.decode(encodedPng);
+    FB.getLoginStatus(function(response) {
+	  if (response.status === "connected") {	
+		postImageToFacebook(response.authResponse.accessToken, "InstaSpam", "image/png", decodedPng, "Generated with InstaSpam");
+	  } else if (response.status === "not_authorized") {
+		 FB.login(function(response) {
+			postImageToFacebook(response.authResponse.accessToken, "InstaSpam", "image/png", decodedPng, "Generated with InstaSpam");
+		 }, {scope: "publish_stream"});
+	  } else {
+		 FB.login(function(response)  { 
+			postImageToFacebook(response.authResponse.accessToken, "InstaSpam", "image/png", decodedPng, "");
+		 }, {scope: "publish_stream"});
+	  }
+	 });
 }    
 
+function postImageToFacebook( authToken, filename, mimeType, imageData, message )
+{
+    // this is the multipart/form-data boundary we'll use
+    var boundary = '----ThisIsTheBoundary1234567890';   
+    // let's encode our image file, which is contained in the var
+    var formData = '--' + boundary + '\r\n'
+    formData += 'Content-Disposition: form-data; name="source"; filename="' + filename + '"\r\n';
+    formData += 'Content-Type: ' + mimeType + '\r\n\r\n';
+    for ( var i = 0; i < imageData.length; ++i )
+    {
+        formData += String.fromCharCode( imageData[ i ] & 0xff );
+    }
+    formData += '\r\n';
+    formData += '--' + boundary + '\r\n';
+    formData += 'Content-Disposition: form-data; name="message"\r\n\r\n';
+    formData += message + '\r\n'
+    formData += '--' + boundary + '--\r\n';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open( 'POST', 'https://graph.facebook.com/me/photos?access_token=' + authToken, true );
+    xhr.onload = xhr.onerror = function() {
+        console.log( xhr.responseText );
+    };
+    xhr.setRequestHeader( "Content-Type", "multipart/form-data; boundary=" + boundary );
+    xhr.sendAsBinary( formData );
+};
 
 // this function fires when the user selects a file.
 // It uses a javascript FileReader object
